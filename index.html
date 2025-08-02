@@ -5,77 +5,43 @@
   <title>시간 정렬기</title>
 </head>
 <body>
-  <h2>텍스트 파일 시간 정렬기</h2>
-  <p>파일의 세 번째 열에 있는 시작 시간(시:분:초)을 기준으로 오름차순 정렬합니다.</p>
+  <h2>혜윤이의 텍스트 파일 시간 정렬기</h2>
   <input type="file" multiple id="fileInput">
   <button onclick="processFiles()">정렬 시작</button>
 
   <script>
-    /**
-     * '시:분:초.밀리초' 형식의 시간 문자열을 총 초 단위 숫자로 변환합니다.
-     */
-    function parseTime(timeStr) {
-      if (typeof timeStr !== 'string') return null;
-
-      const parts = timeStr.split(':');
-      if (parts.length !== 3) return null;
-
-      const hours = parseInt(parts[0], 10);
-      const minutes = parseInt(parts[1], 10);
-      const seconds = parseFloat(parts[2]);
-
-      if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) return null;
-      
-      return (hours * 3600) + (minutes * 60) + seconds;
+    function parseTime(str) {
+      const [min, rest] = str.split(":");
+      const sec = parseFloat(rest);
+      return parseInt(min) * 60 + sec;
     }
 
-    /**
-     * 파일 내용을 받아 시간 기준으로 정렬합니다.
-     */
     function processFile(content) {
-      const lines = content.split("\n")
-        .filter(line => line.trim() && !line.startsWith(';'))
-
-      lines.forEach(line => {
+      const lines = content.split("\n").filter(line => line.trim());
+      const entries = lines.map(line => {
         const parts = line.split("\t");
-        if (parts.length < 3) return; 
-
-        const timeValue = parseTime(parts[2]); 
-
-        if (timeValue !== null) {
-          entries.push({ time: timeValue, line: line });
-        }
+        const start = parts[2];
+        return { time: parseTime(start), line };
       });
-      
       entries.sort((a, b) => a.time - b.time);
-
       return entries.map(e => e.line).join("\n");
     }
 
-    /**
-     * 사용자가 선택한 파일들을 처리하고 다운로드합니다.
-     */
     function processFiles() {
       const input = document.getElementById("fileInput");
-      if (input.files.length === 0) {
-        alert("파일을 선택해주세요.");
-        return;
-      }
-
       Array.from(input.files).forEach(file => {
         const reader = new FileReader();
         reader.onload = e => {
-          console.log(`파일 읽기 완료: ${file.name}`);
           const sorted = processFile(e.target.result);
-
-          if (!sorted.trim()) {
-            alert(`[${file.name}] 파일에서 정렬할 데이터를 찾지 못했습니다.`);
-            return;
-          }
-
-          console.log("정렬 완료. 다운로드를 시작합니다.");
-          const blob = new Blob([sorted], { type: "text/plain;charset=utf-8" });
-          
-          // <a> 태그를 이용한 다운로드 로직 (안정성 강화)
+          const blob = new Blob([sorted], { type: "text/plain" });
           const a = document.createElement("a");
-          document.body
+          a.href = URL.createObjectURL(blob);
+          a.download = file.name;
+          a.click();
+        };
+        reader.readAsText(file, "utf-8");
+      });
+    }
+  </script>
+</body>
+</html>
