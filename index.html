@@ -5,40 +5,105 @@
   <title>시간 정렬기</title>
 </head>
 <body>
-  <h2>혜윤이의 텍스트 파일 시간 정렬기</h2>
+  <h2>텍스트 파일 시간 정렬기</h2>
   <input type="file" multiple id="fileInput">
   <button onclick="processFiles()">정렬 시작</button>
 
   <script>
-    function parseTime(str) {
-      const [min, rest] = str.split(":");
-      const sec = parseFloat(rest);
-      return parseInt(min) * 60 + sec;
+    /**
+     * 시간 문자열 (HH:MM:SS.ms)을 초 단위 숫자로 변환합니다.
+     * 형식이 잘못된 경우, 정렬에서 제외되도록 null을 반환합니다.
+     */
+    function parseTime(timeStr) {
+      // 입력값이 유효한 문자열인지 확인
+      if (typeof timeStr !== 'string') {
+        return null;
+      }
+      
+      const parts = timeStr.split(':');
+      // 시간 형식은 '시:분:초' 3개 부분으로 나뉘어야 함
+      if (parts.length !== 3) {
+        return null;
+      }
+
+      const hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+      const seconds = parseFloat(parts[2]);
+
+      // 각 부분이 숫자로 변환 가능한지 확인
+      if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
+        return null;
+      }
+      
+      // 총 시간을 초 단위로 계산하여 반환
+      return (hours * 3600) + (minutes * 60) + seconds;
     }
 
+    /**
+     * 파일 전체 내용을 받아 시간순으로 정렬된 텍스트를 반환합니다.
+     */
     function processFile(content) {
-      const lines = content.split("\n").filter(line => line.trim());
-      const entries = lines.map(line => {
-        const parts = line.split("\t");
-        const start = parts[2];
-        return { time: parseTime(start), line };
-      });
-      entries.sort((a, b) => a.time - b.time);
-      return entries.map(e => e.line).join("\n");
+      const lines = content.split('\n');
+
+      const sortedLines = lines
+        .map(line => {
+          const parts = line.split('\t');
+          // 데이터가 최소 3개(시간 포함) 있어야 유효한 라인으로 간주
+          if (parts.length < 3) {
+            return null;
+          }
+          const time = parseTime(parts[2]); // 세 번째 열의 시간 정보 파싱
+          // 시간 파싱에 실패하면 null, 성공하면 시간과 원본 라인을 객체로 반환
+          return time === null ? null : { time: time, line: line };
+        })
+        .filter(entry => entry !== null) // 파싱에 실패한 라인(null)을 모두 제거
+        .sort((a, b) => a.time - b.time) // 유효한 라인만 시간순으로 정렬
+        .map(entry => entry.line); // 정렬된 객체에서 원본 라인만 추출
+
+      return sortedLines.join('\n');
     }
 
+    /**
+     * 파일 선택부터 정렬, 다운로드까지의 전체 과정을 처리합니다.
+     */
     function processFiles() {
       const input = document.getElementById("fileInput");
+      if (input.files.length === 0) {
+        alert("정렬할 파일을 선택해주세요.");
+        return;
+      }
+
       Array.from(input.files).forEach(file => {
         const reader = new FileReader();
         reader.onload = e => {
-          const sorted = processFile(e.target.result);
-          const blob = new Blob([sorted], { type: "text/plain" });
+          const sortedContent = processFile(e.target.result);
+
+          if (!sortedContent.trim()) {
+            alert("파일에서 유효한 시간 데이터를 찾을 수 없어 정렬하지 못했습니다.");
+            return;
+          }
+
+          const blob = new Blob([sortedContent], { type: "text/plain;charset=utf-8" });
           const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = file.name;
+          document.body.appendChild(a);
+          a.style = "display: none";
+
+          const url = URL.createObjectURL(blob);
+          a.href = url;
+          a.download = file.name; // 원본 파일명 유지
           a.click();
+
+          // 다운로드 후 생성된 URL 객체와 a 태그를 정리
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+          }, 100);
         };
+
+        reader.onerror = () => {
+          alert("파일을 읽는 중 오류가 발생했습니다.");
+        };
+        
         reader.readAsText(file, "utf-8");
       });
     }
