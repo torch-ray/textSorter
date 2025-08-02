@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>시간 정렬기</title>
+</head>
+<body>
+  <h2>텍스트 파일 시간 정렬기</h2>
+  <input type="file" multiple id="fileInput">
+  <button onclick="processFiles()">정렬 시작</button>
+
+  <script>
+    function parseTime(str) {
+      const [min, rest] = str.split(":");
+      const sec = parseFloat(rest);
+      return parseInt(min) * 60 + sec;
+    }
+
+    function processFile(content) {
+      const lines = content.split("\n").filter(line => line.trim());
+      const entries = lines.map(line => {
+        const parts = line.split("\t");
+        const start = parts[2];
+        return { time: parseTime(start), line };
+      });
+      entries.sort((a, b) => a.time - b.time);
+      return entries.map(e => e.line).join("\n");
+    }
+
+    function processFiles() {
+      const input = document.getElementById("fileInput");
+      Array.from(input.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const sorted = processFile(e.target.result);
+          const blob = new Blob([sorted], { type: "text/plain" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = `sorted_${file.name}`;
+          a.click();
+        };
+        reader.readAsText(file, "utf-8");
+      });
+    }
+  </script>
+</body>
+</html>
