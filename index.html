@@ -5,7 +5,7 @@
   <title>시간 정렬기</title>
 </head>
 <body>
-  <h2>텍스트 파일 시간 정렬기</h2>
+  <h2>혜윤이의 텍스트 파일 시간 정렬기</h2>
   <input type="file" multiple id="fileInput">
   <button onclick="processFiles()">정렬 시작</button>
 
@@ -36,7 +36,7 @@
           const blob = new Blob([sorted], { type: "text/plain" });
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
-          a.download = `sorted_${file.name}`;
+          a.download = file.name;
           a.click();
         };
         reader.readAsText(file, "utf-8");
