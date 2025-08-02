@@ -10,23 +10,67 @@
   <button onclick="processFiles()">정렬 시작</button>
 
   <script>
+    /**
+     * 시간 문자열(mm:ss.ms)을 초 단위 숫자로 변환합니다.
+     * 유효하지 않은 형식의 경우 null을 반환하여 오류를 방지합니다.
+     */
     function parseTime(str) {
-      const [min, rest] = str.split(":");
-      const sec = parseFloat(rest);
-      return parseInt(min) * 60 + sec;
+      // 입력값이 문자열이 아니거나 ':'를 포함하지 않으면 처리하지 않음
+      if (typeof str !== 'string' || !str.includes(':')) {
+        console.warn(`잘못된 시간 형식입니다: "${str}"`);
+        return null;
+      }
+      const parts = str.split(":");
+      // 분:초 형식이 아닐 경우 처리하지 않음
+      if (parts.length !== 2) {
+        console.warn(`잘못된 시간 형식입니다: "${str}"`);
+        return null;
+      }
+      
+      const min = parseInt(parts[0], 10);
+      const sec = parseFloat(parts[1]);
+
+      // 분 또는 초를 숫자로 변환할 수 없는 경우 처리하지 않음
+      if (isNaN(min) || isNaN(sec)) {
+        console.warn(`시간을 숫자로 변환할 수 없습니다: "${str}"`);
+        return null;
+      }
+      return min * 60 + sec;
     }
 
+    /**
+     * 파일 내용을 받아 시간 기준으로 정렬합니다.
+     * 데이터가 없거나 형식이 잘못된 줄은 건너뜁니다.
+     */
     function processFile(content) {
       const lines = content.split("\n").filter(line => line.trim());
-      const entries = lines.map(line => {
+      const entries = [];
+
+      lines.forEach(line => {
         const parts = line.split("\t");
-        const start = parts[2];
-        return { time: parseTime(start), line };
+        // 탭으로 분리했을 때 최소 3개의 열이 없는 경우 해당 줄은 건너뜀
+        if (parts.length < 3) {
+          console.warn(`데이터 열이 부족합니다: "${line}"`);
+          return;
+        }
+
+        const timeValue = parseTime(parts[2]);
+
+        // 시간 변환에 성공한 경우에만 정렬 대상에 추가
+        if (timeValue !== null) {
+          entries.push({ time: timeValue, line: line });
+        }
       });
+
+      // 유효한 데이터만 시간순으로 정렬
       entries.sort((a, b) => a.time - b.time);
+
       return entries.map(e => e.line).join("\n");
     }
 
+    /**
+     * 사용자가 선택한 파일들을 읽고 처리한 후 다운로드합니다.
+     */
     function processFiles() {
       const input = document.getElementById("fileInput");
       Array.from(input.files).forEach(file => {
@@ -36,8 +80,9 @@
           const blob = new Blob([sorted], { type: "text/plain" });
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
-          a.download = file.name;
+          a.download = "sorted_" + file.name; // 정렬된 파일명에 "sorted_" 접두사 추가
           a.click();
+          URL.revokeObjectURL(a.href); // 메모리 누수 방지를 위해 URL 해제
         };
         reader.readAsText(file, "utf-8");
       });
